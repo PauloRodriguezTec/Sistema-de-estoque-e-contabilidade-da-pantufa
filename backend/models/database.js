@@ -1,7 +1,18 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const { hashPassword } = require('../utils/auth');
 const dbPath = path.resolve(__dirname, '..', 'database.sqlite');
 const db = new sqlite3.Database(dbPath);
+
+// Credenciais do administrador inicial. Configuráveis por variáveis de ambiente.
+// O padrão só deve ser usado em desenvolvimento — troque a senha no primeiro acesso.
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'nani@nani';
+const ADMIN_CPF = process.env.ADMIN_CPF || '00000000000';
+const ADMIN_NAME = process.env.ADMIN_NAME || 'Nani';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '123456';
+if (!process.env.ADMIN_PASSWORD) {
+    console.warn('[SEGURANÇA] ADMIN_PASSWORD não definido. Criando admin com senha padrão de desenvolvimento. Defina ADMIN_PASSWORD e troque a senha.');
+}
 
 function ensureColumn(tableName, columnName, definition, callback) {
     db.all(`PRAGMA table_info(${tableName})`, (err, rows) => {
@@ -171,8 +182,8 @@ db.serialize(() => {
         }
 
         db.get(
-            `SELECT id_cliente FROM clientes WHERE email = ? OR cpf_cnpj = ? LIMIT 1`,
-            ['nani@nani', '00000000000'],
+            `SELECT id_cliente, senha FROM clientes WHERE email = ? OR cpf_cnpj = ? LIMIT 1`,
+            [ADMIN_EMAIL, ADMIN_CPF],
             (selectErr, existing) => {
                 if (selectErr) {
                     console.error('Erro ao verificar usuário administrador:', selectErr.message);
@@ -180,9 +191,10 @@ db.serialize(() => {
                 }
 
                 if (existing) {
+                    // Preserva a senha atual do admin já existente (não sobrescreve com o padrão).
                     db.run(
-                        `UPDATE clientes SET nome=?, cpf_cnpj=?, telefone=?, email=?, senha=?, tipo=? WHERE id_cliente=?`,
-                        ['Nani', '00000000000', '00000000000', 'nani@nani', '123456', 'admin', existing.id_cliente],
+                        `UPDATE clientes SET nome=?, cpf_cnpj=?, telefone=?, email=?, tipo=? WHERE id_cliente=?`,
+                        [ADMIN_NAME, ADMIN_CPF, ADMIN_CPF, ADMIN_EMAIL, 'admin', existing.id_cliente],
                         (updateErr) => {
                             if (updateErr) {
                                 console.error('Erro ao atualizar usuário administrador:', updateErr.message);
@@ -192,15 +204,21 @@ db.serialize(() => {
                     return;
                 }
 
-                db.run(
-                    `INSERT INTO clientes (nome, cpf_cnpj, telefone, email, senha, tipo) VALUES (?, ?, ?, ?, ?, ?)`,
-                    ['Nani', '00000000000', '00000000000', 'nani@nani', '123456', 'admin'],
-                    (insertErr) => {
-                        if (insertErr) {
-                            console.error('Erro ao criar usuário administrador:', insertErr.message);
-                        }
-                    }
-                );
+                hashPassword(ADMIN_PASSWORD)
+                    .then((senhaHash) => {
+                        db.run(
+                            `INSERT INTO clientes (nome, cpf_cnpj, telefone, email, senha, tipo) VALUES (?, ?, ?, ?, ?, ?)`,
+                            [ADMIN_NAME, ADMIN_CPF, ADMIN_CPF, ADMIN_EMAIL, senhaHash, 'admin'],
+                            (insertErr) => {
+                                if (insertErr) {
+                                    console.error('Erro ao criar usuário administrador:', insertErr.message);
+                                }
+                            }
+                        );
+                    })
+                    .catch((hashErr) => {
+                        console.error('Erro ao gerar hash da senha do administrador:', hashErr.message);
+                    });
             }
         );
     });
