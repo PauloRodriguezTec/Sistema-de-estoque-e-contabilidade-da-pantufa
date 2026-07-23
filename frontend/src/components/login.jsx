@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+import { postJson } from '../api.js';
 
 function Login({ onLogin, onCadastrar }) {
     const [email, setEmail] = useState('');
@@ -14,16 +13,7 @@ function Login({ onLogin, onCadastrar }) {
         setCarregando(true);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/clientes/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, senha })
-            });
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Erro ao fazer login.');
-            }
+            const data = await postJson('/api/clientes/login', { email, senha }, 'Erro ao fazer login.');
 
             if (data.token) {
                 onLogin(data);

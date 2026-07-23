@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+import { postJson } from '../api.js';
 
 function CadastroCliente({ onCadastroSucesso, onVoltar }) {
     const [form, setForm] = useState({ nome: '', cpf_cnpj: '', telefone: '', email: '', senha: '' });
@@ -17,16 +16,7 @@ function CadastroCliente({ onCadastroSucesso, onVoltar }) {
         setCarregando(true);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/clientes/cadastro`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(form)
-            });
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Erro ao cadastrar cliente.');
-            }
+            const data = await postJson('/api/clientes/cadastro', form, 'Erro ao cadastrar cliente.');
 
             onCadastroSucesso({ ...data, ...form, tipo: 'cliente' });
         } catch (err) {
