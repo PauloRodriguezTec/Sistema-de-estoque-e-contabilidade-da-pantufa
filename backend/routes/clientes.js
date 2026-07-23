@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../models/database');
 const { validateRequiredFields } = require('../utils/validation');
+const { handleDbError, handleWriteError } = require('../utils/http');
 
 // Cadastro de cliente
 router.post('/cadastro', (req, res) => {
@@ -16,12 +17,7 @@ router.post('/cadastro', (req, res) => {
         `INSERT INTO clientes (nome, cpf_cnpj, telefone, email, senha, tipo) VALUES (?, ?, ?, ?, ?, ?)`,
         [nome, cpf_cnpj, telefone, email, senha, 'cliente'],
         function (err) {
-            if (err) {
-                if (err.message.includes('UNIQUE')) {
-                    return res.status(409).json({ error: 'Email ou CPF/CNPJ já cadastrado.' });
-                }
-                return res.status(500).json({ error: err.message });
-            }
+            if (handleWriteError(res, err, 'Email ou CPF/CNPJ já cadastrado.')) return;
             res.status(201).json({ id: this.lastID, message: 'Cliente cadastrado com sucesso!' });
         }
     );
@@ -40,7 +36,7 @@ router.post('/login', (req, res) => {
         `SELECT * FROM clientes WHERE email = ? AND senha = ? LIMIT 1`,
         [email, senha],
         (err, row) => {
-            if (err) return res.status(500).json({ error: err.message });
+            if (handleDbError(res, err)) return;
             if (!row) {
                 return res.status(401).json({ error: 'Credenciais inválidas' });
             }
@@ -58,7 +54,7 @@ router.post('/login', (req, res) => {
 // Listar contas administrativas
 router.get('/admins', (req, res) => {
     db.all(`SELECT id_cliente, nome, email, telefone, tipo FROM clientes WHERE tipo = 'admin' ORDER BY nome`, [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (handleDbError(res, err)) return;
         res.json(rows);
     });
 });
@@ -74,12 +70,7 @@ router.post('/admins', (req, res) => {
         `INSERT INTO clientes (nome, cpf_cnpj, telefone, email, senha, tipo) VALUES (?, ?, ?, ?, ?, ?)`,
         [nome, cpf_cnpj, telefone, email, senha, 'admin'],
         function (err) {
-            if (err) {
-                if (err.message.includes('UNIQUE')) {
-                    return res.status(409).json({ error: 'Email ou CPF/CNPJ já cadastrado.' });
-                }
-                return res.status(500).json({ error: err.message });
-            }
+            if (handleWriteError(res, err, 'Email ou CPF/CNPJ já cadastrado.')) return;
             res.status(201).json({ id: this.lastID, message: 'Administrador criado com sucesso!' });
         }
     );
@@ -91,7 +82,7 @@ router.put('/admins/:id', (req, res) => {
     if (!senha) return res.status(400).json({ error: 'Informe a nova senha.' });
 
     db.run(`UPDATE clientes SET senha = ? WHERE id_cliente = ? AND tipo = 'admin'`, [senha, req.params.id], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
+        if (handleDbError(res, err)) return;
         res.json({ updated: this.changes });
     });
 });
@@ -99,7 +90,7 @@ router.put('/admins/:id', (req, res) => {
 // Excluir conta administrativa
 router.delete('/admins/:id', (req, res) => {
     db.run(`DELETE FROM clientes WHERE id_cliente = ? AND tipo = 'admin'`, [req.params.id], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
+        if (handleDbError(res, err)) return;
         res.json({ deleted: this.changes });
     });
 });
