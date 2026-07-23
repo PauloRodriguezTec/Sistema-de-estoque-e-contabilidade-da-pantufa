@@ -16,7 +16,23 @@ const movimentacoesRoutes = require('./routes/movimentacoes');
 const pagamentosRoutes = require('./routes/pagamentos');
 
 const app = express();
-app.use(cors());
+
+// CORS restrito a uma allowlist configurável (CORS_ORIGINS separado por vírgula).
+// Em desenvolvimento, o padrão libera as portas locais comuns do Vite.
+const defaultOrigins = 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000';
+const allowedOrigins = (process.env.CORS_ORIGINS || defaultOrigins)
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Permite requisições sem Origin (curl, apps mobile, health checks).
+        // Para origens não permitidas, não envia cabeçalhos CORS — o navegador
+        // bloqueia a resposta sem derrubar a requisição com erro 500.
+        return callback(null, !origin || allowedOrigins.includes(origin));
+    }
+}));
 app.use(bodyParser.json());
 
 app.get('/health', (req, res) => {

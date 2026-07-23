@@ -26,6 +26,7 @@ function Login({ onLogin, onCadastrar }) {
             }
 
             if (data.token) {
+                localStorage.setItem('token', data.token);
                 onLogin(data);
             }
         } catch (err) {
