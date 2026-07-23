@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { fetchJson } from '../api.js';
 
 export default function CatalogoCliente({ cliente, onLogout }) {
     const [pizzas, setPizzas] = useState([]);
     const [sabores, setSabores] = useState([]);
     const [carrinho, setCarrinho] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [erro, setErro] = useState('');
     const [mostraSabores, setMostraSabores] = useState(null);
 
     useEffect(() => {
@@ -13,18 +15,16 @@ export default function CatalogoCliente({ cliente, onLogout }) {
 
     const carregarDados = async () => {
         try {
-            const [pizzasRes, saboresRes] = await Promise.all([
-                fetch('/api/produtos?categoria=Produto'),
-                fetch('/api/sabores')
+            const [pizzasData, saboresData] = await Promise.all([
+                fetchJson('/api/produtos?categoria=Produto'),
+                fetchJson('/api/sabores')
             ]);
-
-            const pizzasData = await pizzasRes.json();
-            const saboresData = await saboresRes.json();
 
             setPizzas(pizzasData);
             setSabores(saboresData);
+            setErro('');
         } catch (erro) {
-            console.error('Erro ao carregar pizzas:', erro);
+            setErro(erro.message || 'Erro ao carregar pizzas.');
         } finally {
             setLoading(false);
         }
@@ -71,6 +71,12 @@ export default function CatalogoCliente({ cliente, onLogout }) {
                     Sair
                 </button>
             </div>
+
+            {erro && (
+                <div style={{ backgroundColor: '#f8d7da', color: '#721c24', border: '1px solid #f5c6cb', borderRadius: '4px', padding: '0.75rem', marginBottom: '1rem' }}>
+                    {erro}
+                </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '2rem' }}>
                 {/* Cardápio */}

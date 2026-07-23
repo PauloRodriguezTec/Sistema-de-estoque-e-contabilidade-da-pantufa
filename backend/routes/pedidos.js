@@ -50,51 +50,60 @@ router.post('/checkout', (req, res) => {
             return total + Number(produto.preco_unitario) * Number(item.quantidade || 1);
         }, 0);
 
-        db.run('BEGIN');
-        db.run(
-            `INSERT INTO pedidos (id_cliente, data_pedido, data_entrega, forma_pgto, data_pgto, status, desconto, valor_final) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id_cliente, new Date().toISOString(), null, forma_pgto, null, 'pendente', 0, valorTotal],
-            function (insertErr) {
-                if (insertErr) {
-                    db.run('ROLLBACK');
-                    return res.status(500).json({ error: insertErr.message });
-                }
+        db.run('BEGIN', (beginErr) => {
+            if (beginErr) return res.status(500).json({ error: beginErr.message });
 
-                const pedidoId = this.lastID;
-                const inserirItens = (index) => {
-                    if (index >= items.length) {
-                        db.run('COMMIT');
-                        return res.status(201).json({ id: pedidoId, message: 'Pedido realizado com sucesso!' });
+            db.run(
+                `INSERT INTO pedidos (id_cliente, data_pedido, data_entrega, forma_pgto, data_pgto, status, desconto, valor_final) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [id_cliente, new Date().toISOString(), null, forma_pgto, null, 'pendente', 0, valorTotal],
+                function (insertErr) {
+                    if (insertErr) {
+                        db.run('ROLLBACK');
+                        return res.status(500).json({ error: insertErr.message });
                     }
 
-                    const item = items[index];
-                    const produto = produtosMap.get(item.id_produto);
-                    const quantidade = Number(item.quantidade || 1);
-                    const subtotal = Number(produto.preco_unitario) * quantidade;
-
-                    db.run(
-                        `INSERT INTO itens_pedido (id_pedido, id_produto, quantidade, valor_unitario, subtotal) VALUES (?, ?, ?, ?, ?)`,
-                        [pedidoId, item.id_produto, quantidade, produto.preco_unitario, subtotal],
-                        function (itemErr) {
-                            if (itemErr) {
-                                db.run('ROLLBACK');
-                                return res.status(500).json({ error: itemErr.message });
-                            }
-
-                            db.run(`UPDATE produtos SET estoque = estoque - ? WHERE id_produto = ?`, [quantidade, item.id_produto], function (stockErr) {
-                                if (stockErr) {
+                    const pedidoId = this.lastID;
+                    const inserirItens = (index) => {
+                        if (index >= items.length) {
+                            db.run('COMMIT', (commitErr) => {
+                                if (commitErr) {
                                     db.run('ROLLBACK');
-                                    return res.status(500).json({ error: stockErr.message });
+                                    return res.status(500).json({ error: commitErr.message });
                                 }
-                                inserirItens(index + 1);
+                                return res.status(201).json({ id: pedidoId, message: 'Pedido realizado com sucesso!' });
                             });
+                            return;
                         }
-                    );
-                };
 
-                inserirItens(0);
-            }
-        );
+                        const item = items[index];
+                        const produto = produtosMap.get(item.id_produto);
+                        const quantidade = Number(item.quantidade || 1);
+                        const subtotal = Number(produto.preco_unitario) * quantidade;
+
+                        db.run(
+                            `INSERT INTO itens_pedido (id_pedido, id_produto, quantidade, valor_unitario, subtotal) VALUES (?, ?, ?, ?, ?)`,
+                            [pedidoId, item.id_produto, quantidade, produto.preco_unitario, subtotal],
+                            function (itemErr) {
+                                if (itemErr) {
+                                    db.run('ROLLBACK');
+                                    return res.status(500).json({ error: itemErr.message });
+                                }
+
+                                db.run(`UPDATE produtos SET estoque = estoque - ? WHERE id_produto = ?`, [quantidade, item.id_produto], function (stockErr) {
+                                    if (stockErr) {
+                                        db.run('ROLLBACK');
+                                        return res.status(500).json({ error: stockErr.message });
+                                    }
+                                    inserirItens(index + 1);
+                                });
+                            }
+                        );
+                    };
+
+                    inserirItens(0);
+                }
+            );
+        });
     });
 });
 
@@ -156,6 +165,7 @@ router.get('/minhas/:idCliente', (req, res) => {
 router.get('/:id', (req, res) => {
     db.get(`SELECT * FROM pedidos WHERE id_pedido=?`, [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Pedido não encontrado.' });
         res.json(row);
     });
 });

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { fetchJson } from '../api.js';
 
 export default function DashboardFinanceiro({ onVoltar }) {
     const [resumo, setResumo] = useState(null);
     const [movimentacoes, setMovimentacoes] = useState([]);
     const [filtroStatus, setFiltroStatus] = useState('todos');
+    const [erro, setErro] = useState('');
 
     useEffect(() => {
         carregarDados();
@@ -11,16 +13,16 @@ export default function DashboardFinanceiro({ onVoltar }) {
 
     const carregarDados = async () => {
         try {
-            const [resumoRes, movRes] = await Promise.all([
-                fetch('/api/movimentacoes/relatorio/financeiro'),
-                fetch('/api/movimentacoes/financeiras')
+            const [resumoData, movimentacoesList] = await Promise.all([
+                fetchJson('/api/movimentacoes/relatorio/financeiro'),
+                fetchJson('/api/movimentacoes/financeiras')
             ]);
 
-            setResumo(await resumoRes.json());
-            const movimentacoesList = await movRes.json();
+            setResumo(resumoData);
             setMovimentacoes(movimentacoesList);
+            setErro('');
         } catch (erro) {
-            console.error('Erro ao carregar dados financeiros:', erro);
+            setErro(erro.message || 'Erro ao carregar dados financeiros.');
         }
     };
 
@@ -30,17 +32,15 @@ export default function DashboardFinanceiro({ onVoltar }) {
 
     const confirmarMovimentacao = async (id, status) => {
         try {
-            const res = await fetch(`/api/movimentacoes/financeiras/${id}`, {
+            await fetchJson(`/api/movimentacoes/financeiras/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status })
             });
-
-            if (res.ok) {
-                carregarDados();
-            }
+            setErro('');
+            carregarDados();
         } catch (erro) {
-            console.error('Erro ao atualizar status:', erro);
+            setErro(erro.message || 'Erro ao atualizar status.');
         }
     };
 
@@ -51,6 +51,12 @@ export default function DashboardFinanceiro({ onVoltar }) {
             </button>
 
             <h2>💰 Dashboard Financeiro</h2>
+
+            {erro && (
+                <div style={{ backgroundColor: '#f8d7da', color: '#721c24', border: '1px solid #f5c6cb', borderRadius: '4px', padding: '0.75rem', marginBottom: '1rem' }}>
+                    {erro}
+                </div>
+            )}
 
             {resumo && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
