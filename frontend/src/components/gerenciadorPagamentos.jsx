@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { fetchJson } from '../api.js';
 
 export default function GerenciadorPagamentos({ onVoltar }) {
     const [pagamentos, setPagamentos] = useState([]);
     const [resumo, setResumo] = useState(null);
     const [filtroStatus, setFiltroStatus] = useState('todos');
+    const [erro, setErro] = useState('');
 
     useEffect(() => {
         carregarDados();
@@ -11,31 +13,30 @@ export default function GerenciadorPagamentos({ onVoltar }) {
 
     const carregarDados = async () => {
         try {
-            const [pagamentosRes, resumoRes] = await Promise.all([
-                fetch('/api/pagamentos'),
-                fetch('/api/pagamentos/relatorio/resumo')
+            const [pagamentosData, resumoData] = await Promise.all([
+                fetchJson('/api/pagamentos'),
+                fetchJson('/api/pagamentos/relatorio/resumo')
             ]);
 
-            setPagamentos(await pagamentosRes.json());
-            setResumo(await resumoRes.json());
+            setPagamentos(pagamentosData);
+            setResumo(resumoData);
+            setErro('');
         } catch (erro) {
-            console.error('Erro ao carregar pagamentos:', erro);
+            setErro(erro.message || 'Erro ao carregar pagamentos.');
         }
     };
 
     const atualizarStatus = async (id, novoStatus) => {
         try {
-            const res = await fetch(`/api/pagamentos/${id}`, {
+            await fetchJson(`/api/pagamentos/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: novoStatus })
             });
-
-            if (res.ok) {
-                carregarDados();
-            }
+            setErro('');
+            carregarDados();
         } catch (erro) {
-            console.error('Erro ao atualizar pagamento:', erro);
+            setErro(erro.message || 'Erro ao atualizar pagamento.');
         }
     };
 
@@ -50,6 +51,12 @@ export default function GerenciadorPagamentos({ onVoltar }) {
             </button>
 
             <h2>💳 Gerenciador de Pagamentos</h2>
+
+            {erro && (
+                <div style={{ backgroundColor: '#f8d7da', color: '#721c24', border: '1px solid #f5c6cb', borderRadius: '4px', padding: '0.75rem', marginBottom: '1rem' }}>
+                    {erro}
+                </div>
+            )}
 
             {/* Resumo */}
             {resumo && (

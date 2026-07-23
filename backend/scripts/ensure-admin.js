@@ -36,11 +36,14 @@ function createAdminUser() {
   try {
     await addColumnIfMissing();
     await createAdminUser();
-      db.get('SELECT id_cliente, nome, email, tipo FROM clientes WHERE email = ?', ['nani@nani'], (err, row) => {
-      if (err) throw err;
-      console.log(JSON.stringify(row));
-      db.close();
+    const row = await new Promise((resolve, reject) => {
+      db.get('SELECT id_cliente, nome, email, tipo FROM clientes WHERE email = ?', ['nani@nani'], (err, result) => {
+        if (err) return reject(err);
+        resolve(result);
+      });
     });
+    console.log(JSON.stringify(row));
+    db.close();
   } catch (error) {
     console.error(error.message);
     db.close();

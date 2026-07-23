@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { fetchJson } from '../api.js';
 
 export default function GerenciadorInsumos({ onVoltar }) {
     const [insumos, setInsumos] = useState([]);
+    const [erro, setErro] = useState('');
     const [mostraForm, setMostraForm] = useState(false);
     const [formData, setFormData] = useState({
         nome: '',
@@ -17,10 +19,11 @@ export default function GerenciadorInsumos({ onVoltar }) {
 
     const carregarInsumos = async () => {
         try {
-            const res = await fetch('/api/insumos');
-            setInsumos(await res.json());
+            const dados = await fetchJson('/api/insumos');
+            setInsumos(dados);
+            setErro('');
         } catch (erro) {
-            console.error('Erro ao carregar insumos:', erro);
+            setErro(erro.message || 'Erro ao carregar insumos.');
         }
     };
 
@@ -28,22 +31,21 @@ export default function GerenciadorInsumos({ onVoltar }) {
         e.preventDefault();
 
         try {
-            const res = await fetch('/api/insumos', {
+            await fetchJson('/api/insumos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
 
-            if (res.ok) {
-                alert('Insumo adicionado com sucesso!');
-                setFormData({ nome: '', descricao: '', preco_unitario: '', estoque: '', unidade: 'kg' });
-                setMostraForm(false);
-                carregarInsumos();
-            } else {
-                alert('Erro ao adicionar insumo');
-            }
+            setErro('');
+            alert('Insumo adicionado com sucesso!');
+            setFormData({ nome: '', descricao: '', preco_unitario: '', estoque: '', unidade: 'kg' });
+            setMostraForm(false);
+            carregarInsumos();
         } catch (erro) {
-            console.error('Erro:', erro);
+            const mensagem = erro.message || 'Erro ao adicionar insumo.';
+            setErro(mensagem);
+            alert(mensagem);
         }
     };
 
@@ -54,6 +56,12 @@ export default function GerenciadorInsumos({ onVoltar }) {
             </button>
 
             <h2>📦 Gerenciador de Insumos</h2>
+
+            {erro && (
+                <div style={{ backgroundColor: '#f8d7da', color: '#721c24', border: '1px solid #f5c6cb', borderRadius: '4px', padding: '0.75rem', marginBottom: '1rem' }}>
+                    {erro}
+                </div>
+            )}
 
             <button
                 onClick={() => setMostraForm(!mostraForm)}

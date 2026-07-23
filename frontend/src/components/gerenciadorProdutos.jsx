@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { fetchJson } from '../api.js';
 
 export default function GerenciadorProdutos({ onVoltar }) {
     const [produtos, setProdutos] = useState([]);
     const [sabores, setSabores] = useState([]);
     const [categorias, setCategorias] = useState([]);
+    const [erro, setErro] = useState('');
     const [mostraForm, setMostraForm] = useState(false);
     const [formData, setFormData] = useState({
         nome: '',
@@ -19,17 +21,18 @@ export default function GerenciadorProdutos({ onVoltar }) {
 
     const carregarDados = async () => {
         try {
-            const [produtosRes, saboresRes, categoriasRes] = await Promise.all([
-                fetch('/api/produtos'),
-                fetch('/api/sabores'),
-                fetch('/api/categorias')
+            const [produtosData, saboresData, categoriasData] = await Promise.all([
+                fetchJson('/api/produtos'),
+                fetchJson('/api/sabores'),
+                fetchJson('/api/categorias')
             ]);
 
-            setProdutos(await produtosRes.json());
-            setSabores(await saboresRes.json());
-            setCategorias(await categoriasRes.json());
+            setProdutos(produtosData);
+            setSabores(saboresData);
+            setCategorias(categoriasData);
+            setErro('');
         } catch (erro) {
-            console.error('Erro ao carregar dados:', erro);
+            setErro(erro.message || 'Erro ao carregar dados.');
         }
     };
 
@@ -37,23 +40,22 @@ export default function GerenciadorProdutos({ onVoltar }) {
         e.preventDefault();
 
         try {
-            const res = await fetch('/api/produtos', {
+            await fetchJson('/api/produtos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
 
-            if (res.ok) {
-                alert('Produto criado com sucesso!');
-                setFormData({ nome: '', preco_unitario: '', categoria: '', descricao: '' });
-                setSaborSelecionados([]);
-                setMostraForm(false);
-                carregarDados();
-            } else {
-                alert('Erro ao criar produto');
-            }
+            setErro('');
+            alert('Produto criado com sucesso!');
+            setFormData({ nome: '', preco_unitario: '', categoria: '', descricao: '' });
+            setSaborSelecionados([]);
+            setMostraForm(false);
+            carregarDados();
         } catch (erro) {
-            console.error('Erro:', erro);
+            const mensagem = erro.message || 'Erro ao criar produto.';
+            setErro(mensagem);
+            alert(mensagem);
         }
     };
 
@@ -64,6 +66,12 @@ export default function GerenciadorProdutos({ onVoltar }) {
             </button>
 
             <h2>🍕 Gerenciador de Pizzas</h2>
+
+            {erro && (
+                <div style={{ backgroundColor: '#f8d7da', color: '#721c24', border: '1px solid #f5c6cb', borderRadius: '4px', padding: '0.75rem', marginBottom: '1rem' }}>
+                    {erro}
+                </div>
+            )}
 
             <button
                 onClick={() => setMostraForm(!mostraForm)}

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { fetchJson } from '../api.js';
 
 export default function DashboardEstoque({ onVoltar }) {
     const [insumos, setInsumos] = useState([]);
     const [movimentacoes, setMovimentacoes] = useState([]);
+    const [erro, setErro] = useState('');
     const [mostraFormMovimentacao, setMostraFormMovimentacao] = useState(false);
     const [formData, setFormData] = useState({
         id_insumo: '',
@@ -17,15 +19,16 @@ export default function DashboardEstoque({ onVoltar }) {
 
     const carregarDados = async () => {
         try {
-            const [insumosRes, movRes] = await Promise.all([
-                fetch('/api/insumos'),
-                fetch('/api/movimentacoes/estoque')
+            const [insumosData, movData] = await Promise.all([
+                fetchJson('/api/insumos'),
+                fetchJson('/api/movimentacoes/estoque')
             ]);
 
-            setInsumos(await insumosRes.json());
-            setMovimentacoes(await movRes.json());
+            setInsumos(insumosData);
+            setMovimentacoes(movData);
+            setErro('');
         } catch (erro) {
-            console.error('Erro ao carregar dados:', erro);
+            setErro(erro.message || 'Erro ao carregar dados.');
         }
     };
 
@@ -33,7 +36,7 @@ export default function DashboardEstoque({ onVoltar }) {
         e.preventDefault();
 
         try {
-            const res = await fetch('/api/movimentacoes/estoque', {
+            await fetchJson('/api/movimentacoes/estoque', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -42,16 +45,15 @@ export default function DashboardEstoque({ onVoltar }) {
                 })
             });
 
-            if (res.ok) {
-                alert('Movimentação registrada com sucesso!');
-                setFormData({ id_insumo: '', tipo: 'entrada', quantidade: '', descricao: '' });
-                setMostraFormMovimentacao(false);
-                carregarDados();
-            } else {
-                alert('Erro ao registrar movimentação');
-            }
+            setErro('');
+            alert('Movimentação registrada com sucesso!');
+            setFormData({ id_insumo: '', tipo: 'entrada', quantidade: '', descricao: '' });
+            setMostraFormMovimentacao(false);
+            carregarDados();
         } catch (erro) {
-            console.error('Erro:', erro);
+            const mensagem = erro.message || 'Erro ao registrar movimentação.';
+            setErro(mensagem);
+            alert(mensagem);
         }
     };
 
@@ -64,6 +66,12 @@ export default function DashboardEstoque({ onVoltar }) {
             </button>
 
             <h2>📦 Dashboard de Estoque</h2>
+
+            {erro && (
+                <div style={{ backgroundColor: '#f8d7da', color: '#721c24', border: '1px solid #f5c6cb', borderRadius: '4px', padding: '0.75rem', marginBottom: '1rem' }}>
+                    {erro}
+                </div>
+            )}
 
             {/* Alerta de Baixo Estoque */}
             {insumosComBaixoEstoque.length > 0 && (

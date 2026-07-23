@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { fetchJson } from '../api.js';
 
 function DashboardCliente({ cliente, onLogout }) {
     const [produtos, setProdutos] = useState([]);
@@ -11,12 +12,10 @@ function DashboardCliente({ cliente, onLogout }) {
     const carregarDados = async () => {
         try {
             setCarregando(true);
-            const [produtosRes, pedidosRes] = await Promise.all([
-                fetch('http://localhost:5000/api/produtos'),
-                fetch(`http://localhost:5000/api/pedidos/minhas/${cliente.id_cliente}`)
+            const [produtosData, pedidosData] = await Promise.all([
+                fetchJson('http://localhost:5000/api/produtos'),
+                fetchJson(`http://localhost:5000/api/pedidos/minhas/${cliente.id_cliente}`)
             ]);
-            const produtosData = await produtosRes.json();
-            const pedidosData = await pedidosRes.json();
             setProdutos(produtosData);
             setPedidos(pedidosData);
         } catch (error) {
@@ -58,13 +57,11 @@ function DashboardCliente({ cliente, onLogout }) {
         }
 
         try {
-            const response = await fetch('http://localhost:5000/api/pedidos/checkout', {
+            await fetchJson('http://localhost:5000/api/pedidos/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id_cliente: cliente.id_cliente, forma_pgto: formaPgto, items: carrinho.map((item) => ({ id_produto: item.id_produto, quantidade: item.quantidade })) })
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Erro ao concluir pedido.');
             setMensagem('Pedido realizado com sucesso!');
             setCarrinho([]);
             carregarDados();
@@ -75,9 +72,7 @@ function DashboardCliente({ cliente, onLogout }) {
 
     const cancelarPedido = async (pedidoId) => {
         try {
-            const response = await fetch(`http://localhost:5000/api/pedidos/${pedidoId}/cancelar`, { method: 'DELETE' });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Erro ao cancelar pedido.');
+            await fetchJson(`http://localhost:5000/api/pedidos/${pedidoId}/cancelar`, { method: 'DELETE' });
             setMensagem('Pedido cancelado com sucesso.');
             carregarDados();
         } catch (error) {
